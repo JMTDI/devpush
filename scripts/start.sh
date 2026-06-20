@@ -16,7 +16,7 @@ Start the /dev/push stack (dev or prod auto-detected).
   --components <csv>
                     Comma-separated list of services to start (${VALID_COMPONENTS//|/, })
   --no-migrate      Skip running database migrations after start
-  --timeout <sec>   Max seconds to wait for app to become healthy (default: 60)
+  --timeout <sec>   Max seconds to wait for app to become healthy (default: 180)
   -v, --verbose     Enable verbose output
   -h, --help        Show this help
 USG
@@ -24,7 +24,7 @@ USG
 }
 
 run_migrations=1
-timeout=60
+timeout=180
 comps=""
 while [[ $# -gt 0 ]]; do
   case "$1" in

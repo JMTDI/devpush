@@ -36,7 +36,7 @@ See [devpu.sh/docs](https://devpu.sh/docs) for installation, configuration, and 
 1. **Install** on a fresh server:
 
 ```bash
-curl -fsSL https://install.devpu.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/JMTDI/devpush/main/scripts/install.sh | sudo bash
 ```
 
 2. **Create a GitHub App** at [devpu.sh/docs/guides/create-github-app](https://devpu.sh/docs/guides/create-github-app)
@@ -45,7 +45,7 @@ curl -fsSL https://install.devpu.sh | sudo bash
 
 4. **Set DNS**:
    - `A` `example.com` → server IP (app hostname)
-   - `A` `*.example.com` → server IP (deployments)
+   - `A` `apps.example.com` → server IP (deployments)
 
 5. **Start** the service:
 
@@ -60,7 +60,7 @@ For more information, including manual installation or updates, refer to [the do
 **Prerequisites**: Docker and Docker Compose v2+. On macOS, [Colima](https://github.com/abiosoft/colima) works well as an alternative to Docker Desktop.
 
 ```bash
-git clone https://github.com/hunvreus/devpush.git
+git clone https://github.com/JMTDI/devpush.git
 cd devpush
 mkdir -p data
 cp .env.dev.example data/.env
@@ -126,7 +126,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for codebase structure.
 | `GITHUB_APP_CLIENT_ID`              | GitHub OAuth client ID.                                                                                                                  |
 | `GITHUB_APP_CLIENT_SECRET`          | GitHub OAuth client secret.                                                                                                              |
 | `APP_HOSTNAME`                      | Domain for the app (e.g., `example.com`).                                                                                                |
-| `DEPLOY_DOMAIN`                     | Domain for deployments (wildcard root). No default—set explicitly (e.g., `deploy.example.com`).                                          |
+| `DEPLOY_DOMAIN`                     | Base domain for deployments (e.g., `apps.example.com`). All apps are served under `/apps/<name>` on this domain.                         |
 | `LE_EMAIL`                          | Email for Let's Encrypt notifications.                                                                                                   |
 | `EMAIL_SENDER_ADDRESS`              | Email sender for invites/login.                                                                                                          |
 | `RESEND_API_KEY`                    | API key for [Resend](https://resend.com). Optional if SMTP is configured.                                                               |
@@ -164,9 +164,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for codebase structure.
 ## Support the project
 
 - [Contribute code](/CONTRIBUTING.md)
-- [Report issues](https://github.com/hunvreus/devpush/issues)
-- [Sponsor me](https://github.com/sponsors/hunvreus)
-- [Star the project on GitHub](https://github.com/hunvreus/devpush)
+- [Report issues](https://github.com/JMTDI/devpush/issues)
+- [Star the project on GitHub](https://github.com/JMTDI/devpush)
 - [Join the Discord chat](https://devpu.sh/chat)
 
 ## License

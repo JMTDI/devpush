@@ -394,12 +394,12 @@ class Project(Base):
     @property
     def hostname(self) -> str:
         settings = get_settings()
-        return f"{self.slug}.{settings.deploy_domain}"
+        return settings.deploy_domain
 
     @property
     def url(self) -> str:
         settings = get_settings()
-        return f"{settings.url_scheme}://{self.hostname}"
+        return f"{settings.url_scheme}://{settings.deploy_domain}/apps/{self.slug}"
 
     @property
     def color(self) -> str:
@@ -577,36 +577,31 @@ class Project(Base):
     def get_environment_hostname(self, environment_slug: str) -> str:
         """Get environment hostname"""
         settings = get_settings()
-        if environment_slug == "production":
-            return self.hostname
-        return f"{self.slug}-env-{environment_slug}.{settings.deploy_domain}"
+        return settings.deploy_domain
 
     def get_environment_url(self, environment_slug: str) -> str:
         """Get environment URL"""
         settings = get_settings()
-        return (
-            f"{settings.url_scheme}://{self.get_environment_hostname(environment_slug)}"
-        )
+        if environment_slug == "production":
+            return f"{settings.url_scheme}://{settings.deploy_domain}/apps/{self.slug}"
+        return f"{settings.url_scheme}://{settings.deploy_domain}/apps/{self.slug}/env/{environment_slug}"
 
     def get_branch_hostname(self, branch: str) -> str:
         """Get branch hostname"""
         settings = get_settings()
-        return f"{self.slug}-branch-{branch}.{settings.deploy_domain}"
+        return settings.deploy_domain
 
     def get_branch_url(self, branch: str) -> str:
         """Get branch URL"""
         settings = get_settings()
-        return f"{settings.url_scheme}://{self.get_branch_hostname(branch)}"
+        return f"{settings.url_scheme}://{settings.deploy_domain}/apps/{self.slug}/branch/{branch}"
 
 
 @event.listens_for(Project, "after_insert")
 def set_project_slug(mapper, connection, project):
     """Generate and set slug after project is inserted (and has an ID)."""
     if not project.slug:
-        team_slug = connection.scalar(
-            select(Team.slug).where(Team.id == project.team_id)
-        )
-        base_slug = f"{project.name}-{team_slug}".lower()
+        base_slug = project.name.lower()
         base_slug = base_slug.replace(" ", "-").replace("_", "-").replace(".", "-")
         base_slug = re.sub(r"[^a-z0-9-]", "", base_slug)
         base_slug = re.sub(r"-+", "-", base_slug)
@@ -831,12 +826,12 @@ class Deployment(Base):
     @property
     def hostname(self) -> str:
         settings = get_settings()
-        return f"{self.slug}.{settings.deploy_domain}"
+        return settings.deploy_domain
 
     @property
     def url(self) -> str:
         settings = get_settings()
-        return f"{settings.url_scheme}://{self.hostname}"
+        return f"{settings.url_scheme}://{settings.deploy_domain}/apps/{self.project.slug}/id/{self.id[:7]}"
 
     def __repr__(self):
         return f"<Deployment {self.id}>"
@@ -857,7 +852,7 @@ class Alias(Base):
     __tablename__: str = "alias"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    subdomain: Mapped[str] = mapped_column(String(63), nullable=False, unique=True)
+    path: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     deployment_id: Mapped[str] = mapped_column(ForeignKey("deployment.id"), index=True)
     previous_deployment_id: Mapped[str | None] = mapped_column(
         ForeignKey("deployment.id"), index=True, nullable=True
@@ -882,25 +877,25 @@ class Alias(Base):
     @property
     def hostname(self) -> str:
         settings = get_settings()
-        return f"{self.subdomain}.{settings.deploy_domain}"
+        return settings.deploy_domain
 
     @property
     def url(self) -> str:
         settings = get_settings()
-        return f"{settings.url_scheme}://{self.hostname}"
+        return f"{settings.url_scheme}://{settings.deploy_domain}/{self.path}"
 
     @classmethod
     async def update_or_create(
         cls,
         db: AsyncSession,
-        subdomain: str,
+        path: str,
         deployment_id: str,
         type: str,
         value: str | None = None,
         environment_id: str | None = None,
     ) -> dict[str, object]:
         """Update or create alias"""
-        result_query = await db.execute(select(cls).where(cls.subdomain == subdomain))
+        result_query = await db.execute(select(cls).where(cls.path == path))
         alias = result_query.scalar_one_or_none()
 
         result = {}
@@ -918,7 +913,7 @@ class Alias(Base):
             alias.deployment_id = deployment_id
         else:
             alias = cls(
-                subdomain=subdomain,
+                path=path,
                 deployment_id=deployment_id,
                 type=type,
                 value=value,
@@ -930,7 +925,7 @@ class Alias(Base):
 
     @override
     def __repr__(self):
-        return f"<Alias {self.subdomain}>"
+        return f"<Alias {self.path}>"
 
 
 class Domain(Base):

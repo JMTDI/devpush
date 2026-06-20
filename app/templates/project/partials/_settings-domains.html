@@ -238,7 +238,7 @@
                 {% if domain.status == "disabled" %}
                   <p>{{ _("This domain has been disabled, most likely because the environment it was associated with was deleted. Please select a new environment.") }}</p>
                 {% else %}
-                  {% set env_id_hostname = project.slug + '-env-id-' + domain.environment_id + '.' + deploy_domain %}
+                  {% set env_id_hostname = deploy_domain %}
                   {% if domain.is_apex %}
                     <p>{{ _('Add a <code>ANAME</code> or <code>ALIAS</code> record at your domain provider:') | safe }}</p>
                   {% else %}
@@ -264,7 +264,7 @@
                             {% endif %}
                           </td>
                           <td>
-                            <code>{{ "@" if domain.is_apex else domain.hostname.split(".")[0] }}</code>
+                            <code>{{ "@" if domain.is_apex else domain.hostname }}</code>
                           </td>
                           <td class="truncate w-full max-w-1">
                             {{ env_id_hostname }}

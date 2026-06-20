@@ -1,6 +1,7 @@
 import asyncio
 import aiodocker
 import logging
+import re
 from sqlalchemy import select, true
 from sqlalchemy.orm import joinedload
 from pathlib import Path
@@ -144,12 +145,15 @@ async def start_deployment(ctx, deployment_id: str):
                 # Setup container configuration
                 container_name = f"runner-{deployment.id[:7]}"
                 router = f"deployment-{deployment.id}"
+                path_prefix = f"/apps/{deployment.project.slug}/id/{deployment.id[:7]}"
+                strip_middleware = f"strip-{deployment.id[:7]}"
 
                 labels = {
                     "traefik.enable": "true",
-                    f"traefik.http.routers.{router}.rule": f"Host(`{deployment.slug}.{settings.deploy_domain}`)",
+                    f"traefik.http.routers.{router}.rule": f"Host(`{settings.deploy_domain}`) && PathRegexp(`^/apps/{re.escape(deployment.project.slug)}/id/{deployment.id[:7]}(/|$)`)",
+                    f"traefik.http.routers.{router}.middlewares": strip_middleware,
+                    f"traefik.http.middlewares.{strip_middleware}.stripprefix.prefixes": path_prefix,
                     f"traefik.http.routers.{router}.service": f"{router}@docker",
-                    f"traefik.http.routers.{router}.priority": "10",
                     f"traefik.http.services.{router}.loadbalancer.server.port": "8000",
                     "traefik.docker.network": "devpush_runner",
                     "devpush.deployment_id": deployment.id,

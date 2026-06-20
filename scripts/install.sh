@@ -24,8 +24,7 @@ for ((i=0; i<${#args[@]}; i++)); do
 done
 
 if [[ -z "$ref" ]]; then
-  repo="https://github.com/hunvreus/devpush.git"
-  if ! refs_output="$(git ls-remote --tags --refs "$repo" 2>&1)"; then
+  repo="https://github.com/JMTDI/devpush.git"
     printf "Error: git ls-remote failed while resolving latest release (output below)\n%s\n" "$refs_output"
     exit 1
   fi
@@ -38,7 +37,7 @@ if [[ -z "$ref" ]]; then
   fi
 fi
 
-LIB_URL="https://raw.githubusercontent.com/hunvreus/devpush/${ref}/scripts/lib.sh"
+LIB_URL="https://raw.githubusercontent.com/JMTDI/devpush/${ref}/scripts/lib.sh"
 
 # Load lib.sh: prefer local copy; otherwise fetch from the resolved ref
 if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/lib.sh" ]]; then
@@ -80,7 +79,7 @@ Usage: install.sh [--repo <url>] [--ref <ref>] [--yes] [--no-telemetry] [--verbo
 
 Install and configure /dev/push on a server (Docker, user, repo, .env).
 
-  --repo <url>           Git repo to clone (default: https://github.com/hunvreus/devpush.git)
+  --repo <url>           Git repo to clone (default: https://github.com/JMTDI/devpush.git)
   --ref <ref>            Git ref (branch/tag/commit) to install (default: latest stable tag)
   --yes, -y              Non-interactive, proceed without prompts
   --no-telemetry         Do not send telemetry
@@ -91,7 +90,7 @@ USG
 }
 
 # Parse CLI flags
-repo="https://github.com/hunvreus/devpush.git"
+repo="https://github.com/JMTDI/devpush.git"
 telemetry=1; yes_flag=0
 [[ "${NO_TELEMETRY:-0}" == "1" ]] && telemetry=0
 

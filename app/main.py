@@ -92,13 +92,15 @@ async def health():
     return {"status": "ok"}
 
 
-@app.get("/deployment-not-found/{host}")
+@app.get("/apps/{rest:path}")
 async def catch_all_missing_container(
     request: Request,
-    host: str,
+    rest: str,
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ):
+    import re
+
     current_user = await get_current_user(
         request=request,
         db=db,
@@ -106,57 +108,45 @@ async def catch_all_missing_container(
         redirect_on_fail=False,
     )
 
-    if current_user and host.endswith(settings.deploy_domain):
-        import re
-
-        subdomain = host.removesuffix(f".{settings.deploy_domain}")
-
-        match = re.match(
-            r"^(?P<project_slug>.+)-id-(?P<short_id>[a-f0-9]{7})$", subdomain
-        )
-        if match:
-            project_slug = match.group("project_slug")
-            short_id = match.group("short_id")
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(
-                    select(Deployment, Project, Team)
-                    .join(Project, Deployment.project_id == Project.id)
-                    .join(Team, Project.team_id == Team.id)
-                    .where(
-                        Project.slug == project_slug,
-                        Deployment.id.startswith(short_id),
-                    )
+    match = re.match(
+        r"^(?P<project_slug>[^/]+)/id/(?P<short_id>[a-f0-9]{7})(/|$)", rest
+    )
+    if match and current_user:
+        project_slug = match.group("project_slug")
+        short_id = match.group("short_id")
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(Deployment, Project, Team)
+                .join(Project, Deployment.project_id == Project.id)
+                .join(Team, Project.team_id == Team.id)
+                .where(
+                    Project.slug == project_slug,
+                    Deployment.id.startswith(short_id),
                 )
-                deployment, project, team = result.first() or (None, None, None)
-                if deployment:
-                    return TemplateResponse(
-                        request=request,
-                        name="error/deployment-not-found.html",
-                        status_code=404,
-                        context={
-                            "current_user": current_user,
-                            "deployment_url": request.url_for(
-                                "project_deployment",
-                                team_slug=team.slug,
-                                project_name=project.name,
-                                deployment_id=deployment.id,
-                            ).include_query_params(action="redeploy"),
-                            "deployment_id": deployment.id,
-                        },
-                    )
-
-        return TemplateResponse(
-            request=request,
-            name="error/deployment-not-found.html",
-            status_code=404,
-            context={"current_user": current_user},
-        )
+            )
+            deployment, project, team = result.first() or (None, None, None)
+            if deployment:
+                return TemplateResponse(
+                    request=request,
+                    name="error/deployment-not-found.html",
+                    status_code=404,
+                    context={
+                        "current_user": current_user,
+                        "deployment_url": request.url_for(
+                            "project_deployment",
+                            team_slug=team.slug,
+                            project_name=project.name,
+                            deployment_id=deployment.id,
+                        ).include_query_params(action="redeploy"),
+                        "deployment_id": deployment.id,
+                    },
+                )
 
     return TemplateResponse(
         request=request,
         name="error/deployment-not-found.html",
         status_code=404,
-        context={},
+        context={"current_user": current_user} if current_user else {},
     )
 
 

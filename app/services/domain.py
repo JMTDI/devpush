@@ -53,32 +53,32 @@ class DomainService:
                         f"Add an A record pointing to {self.server_ip} or use ANAME/ALIAS if your DNS provider supports it.",
                     )
             else:
-                # Subdomain: check CNAME points to environment alias
+                # Subdomain: check CNAME points to deploy domain
                 try:
                     cname_records = dns.resolver.resolve(hostname, "CNAME")
                     cname_target = str(cname_records[0]).rstrip(".")
 
                     # Check if CNAME points to our deploy domain
-                    if not cname_target.endswith(f".{self.deploy_domain}"):
+                    if cname_target != self.deploy_domain:
                         return (
                             False,
                             "CNAME target mismatch",
-                            f"CNAME points to {cname_target}, expected to point to a subdomain of {self.deploy_domain}. "
-                            f"Add a CNAME record pointing to your environment alias.",
+                            f"CNAME points to {cname_target}, expected to point to {self.deploy_domain}. "
+                            f"Add a CNAME record pointing to {self.deploy_domain}.",
                         )
                 except dns.resolver.NXDOMAIN:
                     return (
                         False,
                         "CNAME record not found",
                         f"No CNAME record found for {hostname}. "
-                        f"Add a CNAME record pointing to your environment alias.",
+                        f"Add a CNAME record pointing to {self.deploy_domain}.",
                     )
                 except dns.resolver.NoAnswer:
                     return (
                         False,
                         "CNAME record not found",
                         f"No CNAME record found for {hostname}. "
-                        f"Add a CNAME record pointing to your environment alias.",
+                        f"Add a CNAME record pointing to {self.deploy_domain}.",
                     )
 
             return True, "Domain verified successfully", None

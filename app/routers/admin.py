@@ -551,7 +551,7 @@ async def admin_settings(
 
         if current_ref:
             try:
-                user_agent = f"devpush/{current_ref or 'dev'} (+https://github.com/hunvreus/devpush)"
+                user_agent = f"devpush/{current_ref or 'dev'} (+https://github.com/JMTDI/devpush)"
                 headers = {
                     "Accept": "application/vnd.github+json",
                     "User-Agent": user_agent,
@@ -559,7 +559,7 @@ async def admin_settings(
                 async with httpx.AsyncClient(timeout=3.0, headers=headers) as client:
                     per_page = 50
                     request_latest_tag = await client.get(
-                        "https://api.github.com/repos/hunvreus/devpush/tags",
+                        "https://api.github.com/repos/JMTDI/devpush/tags",
                         params={"per_page": per_page},
                     )
                     if request_latest_tag.status_code == 200:

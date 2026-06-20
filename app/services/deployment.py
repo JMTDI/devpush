@@ -73,24 +73,25 @@ class DeploymentService:
     ) -> dict[str, str]:
         project = deployment.project
         values: dict[str, str] = {}
+        base = f"apps/{project.slug}"
 
         if deployment.branch:
             sanitized_branch = re.sub(r"[^a-zA-Z0-9-]", "-", deployment.branch).lower()
             if sanitized_branch:
-                branch_subdomain = f"{project.slug}-branch-{sanitized_branch}"
-                values["branch_subdomain"] = branch_subdomain
-                values["branch_domain"] = f"{branch_subdomain}.{settings.deploy_domain}"
+                branch_path = f"{base}/branch/{sanitized_branch}"
+                values["branch_path"] = branch_path
+                values["branch_domain"] = settings.deploy_domain
                 values["branch_url"] = (
-                    f"{settings.url_scheme}://{values['branch_domain']}"
+                    f"{settings.url_scheme}://{settings.deploy_domain}/{branch_path}"
                 )
 
-        env_subdomain = None
+        env_path = None
         if deployment.environment_id == "prod":
-            env_subdomain = project.slug
+            env_path = base
         else:
             environment = project.get_environment_by_id(deployment.environment_id)
             if environment:
-                env_subdomain = f"{project.slug}-env-{environment.get('slug')}"
+                env_path = f"{base}/env/{environment.get('slug')}"
             else:
                 logger.warning(
                     "Environment %s not found for deployment %s",
@@ -98,19 +99,19 @@ class DeploymentService:
                     deployment.id,
                 )
 
-        env_id_subdomain = f"{project.slug}-env-id-{deployment.environment_id}"
+        env_id_path = f"{base}/env-id/{deployment.environment_id}"
 
-        values["environment_id_subdomain"] = env_id_subdomain
-        values["environment_id_domain"] = f"{env_id_subdomain}.{settings.deploy_domain}"
+        values["environment_id_path"] = env_id_path
+        values["environment_id_domain"] = settings.deploy_domain
         values["environment_id_url"] = (
-            f"{settings.url_scheme}://{values['environment_id_domain']}"
+            f"{settings.url_scheme}://{settings.deploy_domain}/{env_id_path}"
         )
 
-        if env_subdomain:
-            values["environment_subdomain"] = env_subdomain
-            values["environment_domain"] = f"{env_subdomain}.{settings.deploy_domain}"
+        if env_path:
+            values["environment_path"] = env_path
+            values["environment_domain"] = settings.deploy_domain
             values["environment_url"] = (
-                f"{settings.url_scheme}://{values['environment_domain']}"
+                f"{settings.url_scheme}://{settings.deploy_domain}/{env_path}"
             )
 
         return values
@@ -151,6 +152,8 @@ class DeploymentService:
             ]
         if alias_domains.get("environment_url"):
             runtime_vars["DEVPUSH_URL_ENVIRONMENT"] = alias_domains["environment_url"]
+        if alias_domains.get("environment_path"):
+            runtime_vars["DEVPUSH_PATH_PREFIX"] = f"/{alias_domains['environment_path']}"
         if alias_domains.get("branch_domain"):
             runtime_vars["DEVPUSH_DOMAIN_BRANCH"] = alias_domains["branch_domain"]
         if alias_domains.get("branch_url"):
@@ -205,15 +208,15 @@ class DeploymentService:
         self, deployment: Deployment, db: AsyncSession, settings: Settings
     ) -> None:
         alias_domains = self.get_alias_domains(deployment, settings)
-        branch_subdomain = alias_domains.get("branch_subdomain")
-        env_subdomain = alias_domains.get("environment_subdomain")
-        env_id_subdomain = alias_domains.get("environment_id_subdomain")
+        branch_path = alias_domains.get("branch_path")
+        env_path = alias_domains.get("environment_path")
+        env_id_path = alias_domains.get("environment_id_path")
 
-        if branch_subdomain:
+        if branch_path:
             try:
                 await Alias.update_or_create(
                     db,
-                    subdomain=branch_subdomain,
+                    path=branch_path,
                     deployment_id=deployment.id,
                     type="branch",
                     value=deployment.branch,
@@ -221,11 +224,11 @@ class DeploymentService:
             except Exception as exc:
                 logger.warning("Failed to setup branch alias: %s", exc)
 
-        if env_subdomain:
+        if env_path:
             try:
                 await Alias.update_or_create(
                     db,
-                    subdomain=env_subdomain,
+                    path=env_path,
                     deployment_id=deployment.id,
                     type="environment",
                     value=deployment.environment_id,
@@ -234,11 +237,11 @@ class DeploymentService:
             except Exception as exc:
                 logger.error("Failed to setup environment alias: %s", exc)
 
-        if env_id_subdomain:
+        if env_id_path:
             try:
                 await Alias.update_or_create(
                     db,
-                    subdomain=env_id_subdomain,
+                    path=env_id_path,
                     deployment_id=deployment.id,
                     type="environment_id",
                     value=deployment.environment_id,
@@ -297,8 +300,10 @@ class DeploymentService:
 
         # Aliases
         for a in aliases:
+            middleware_name = f"strip-alias-{a.id}"
             router_config = {
-                "rule": f"Host(`{a.subdomain}.{settings.deploy_domain}`)",
+                "rule": f"Host(`{settings.deploy_domain}`) && PathRegexp(`^/{re.escape(a.path)}(/|$)`)",
+                "middlewares": [middleware_name],
                 "service": f"deployment-{a.deployment_id}@docker",
                 "entryPoints": ["web", "websecure"]
                 if settings.url_scheme == "https"
@@ -307,6 +312,9 @@ class DeploymentService:
             if settings.url_scheme == "https":
                 router_config["tls"] = {"certResolver": "le"}
             routers[f"router-alias-{a.id}"] = router_config
+            middlewares[middleware_name] = {
+                "stripPrefix": {"prefixes": [f"/{a.path}"]}
+            }
 
         # Domains
         for domain in domains:
@@ -354,7 +362,7 @@ class DeploymentService:
                 middlewares[middleware_name] = {
                     "redirectRegex": {
                         "regex": f"^https?://{domain.hostname}/(.*)",
-                        "replacement": f"https://{env_alias.subdomain}.{settings.deploy_domain}/$1",
+                        "replacement": f"https://{settings.deploy_domain}/{env_alias.path}/$1",
                         "permanent": domain.type in ["301", "308"],
                     }
                 }
@@ -574,14 +582,14 @@ class DeploymentService:
         settings: Settings,
     ) -> Alias:
         """Rollback an environment to its previous deployment."""
-        subdomain = (
-            project.slug
+        alias_path = (
+            f"apps/{project.slug}"
             if environment["id"] == "prod"
-            else f"{project.slug}-env-{environment['slug']}"
+            else f"apps/{project.slug}/env/{environment['slug']}"
         )
 
         alias = (
-            await db.execute(select(Alias).where(Alias.subdomain == subdomain))
+            await db.execute(select(Alias).where(Alias.path == alias_path))
         ).scalar_one_or_none()
 
         if not alias or not alias.previous_deployment_id:

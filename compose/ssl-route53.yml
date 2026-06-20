@@ -32,5 +32,4 @@ services:
       - "traefik.http.routers.cert-bootstrap.priority=1"
       - "traefik.http.routers.cert-bootstrap.service=noop@internal"
       - "traefik.http.routers.cert-bootstrap.tls.domains[0].main=${DEPLOY_DOMAIN}"
-      - "traefik.http.routers.cert-bootstrap.tls.domains[0].sans=*.${DEPLOY_DOMAIN}"
       - "traefik.http.routers.cert-bootstrap.tls.domains[1].main=${APP_HOSTNAME}"

@@ -36,7 +36,7 @@ See [devpu.sh/docs](https://devpu.sh/docs) for installation, configuration, and 
 1. **Install** on a fresh server:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/JMTDI/devpush/main/scripts/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/JMTDI/devpush/main/scripts/install.sh | bash
 ```
 
 2. **Create a GitHub App** at [devpu.sh/docs/guides/create-github-app](https://devpu.sh/docs/guides/create-github-app)

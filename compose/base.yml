@@ -24,7 +24,7 @@ services:
       - ${DATA_DIR:-../data}:/data
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.app.rule=Host(`${APP_HOSTNAME}`)"
+      - "traefik.http.routers.app.rule=Host(`${DEPLOY_DOMAIN}`)"
       - "traefik.http.routers.app.service=app@docker"
       - "traefik.http.services.app.loadbalancer.server.port=8000"
       - "traefik.docker.network=devpush_default"
@@ -134,11 +134,7 @@ services:
       - internal
       - runner
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.deploy-catch-all.rule=Host(`${DEPLOY_DOMAIN}`)"
-      - "traefik.http.routers.deploy-catch-all.entrypoints=web"
-      - "traefik.http.routers.deploy-catch-all.priority=1"
-      - "traefik.http.routers.deploy-catch-all.service=app@docker"
+      - "traefik.enable=false"
 
   pgsql:
     image: postgres:16

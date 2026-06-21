@@ -25,7 +25,6 @@ done
 
 if [[ -z "$ref" ]]; then
   repo="https://github.com/JMTDI/devpush.git"
-  if ! refs_output="$(git ls-remote --tags --refs "$repo" 2>&1)"; then
     printf "Error: git ls-remote failed while resolving latest release (output below)\n%s\n" "$refs_output"
     exit 1
   fi
